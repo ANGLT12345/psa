@@ -88,17 +88,25 @@ export default function Archive({ admin = false, token = null }) {
       </aside>
 
       <div className="flex-1 min-w-0">
-        <header className="px-5 md:px-10 pt-8 pb-6 flex flex-wrap items-end justify-between gap-4">
-          <div>
+        <header className="px-5 md:px-10 pt-8 pb-6 flex flex-wrap items-start justify-between gap-4">
+          <div className="order-2 md:order-1">
             <p className="text-[10px] tracking-[0.3em] mb-2" style={{ fontFamily: MONO, color: MUTE }}>
               CATALOGUE / {year}
             </p>
-            <h1 className="text-5xl md:text-7xl font-bold leading-none" style={{ letterSpacing: "-0.045em" }}>
-              The Archive
+            <h1 className="text-4xl md:text-6xl font-bold leading-[1.02] max-w-3xl" style={{ letterSpacing: "-0.035em" }}>
+              SST-IDP Pop Science Articles
             </h1>
           </div>
-          {admin && (
-            <div className="flex gap-2">
+          <div className="order-1 md:order-2 flex flex-col items-end gap-3">
+            <img
+              src="/logo.png"
+              alt="SST Science Communication"
+              className="h-14 md:h-20 w-auto"
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+              }}
+            />
+            {admin && (
               <button
                 onClick={() => setPanel("new")}
                 className="text-[11px] tracking-widest px-4 py-2"
@@ -106,8 +114,8 @@ export default function Archive({ admin = false, token = null }) {
               >
                 + NEW ENTRY
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </header>
 
         <div className="h-px mx-5 md:mx-10" style={{ background: INK }} />
