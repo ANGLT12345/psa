@@ -312,7 +312,7 @@ function Reader({ doc, onBack }) {
         </p>
       </div>
 
-      <div className="px-2 md:px-10 pb-10">
+      <div className="px-2 md:px-10 pb-10" onContextMenu={(e) => e.preventDefault()}>
         {err ? (
           <div className="p-8 bg-white text-black">
             <p className="font-bold mb-1">Couldn't open this file.</p>
@@ -321,7 +321,12 @@ function Reader({ doc, onBack }) {
             </p>
           </div>
         ) : src ? (
-          <iframe src={src} title={doc.title} className="w-full h-[82vh] bg-white" />
+          // #toolbar=0 hides the browser PDF top bar (download / print / rotate).
+          <iframe
+            src={`${src}#toolbar=0&navpanes=0&statusbar=0`}
+            title={doc.title}
+            className="w-full h-[82vh] bg-white"
+          />
         ) : (
           <div className="p-8 bg-white text-black">
             <p className="text-sm" style={{ fontFamily: MONO, color: MUTE }}>
