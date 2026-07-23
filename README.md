@@ -18,9 +18,9 @@ There are two pages:
 - **`/`** — the public, read-only catalogue. No upload controls, no login, no
   technical labels. The browser ships zero Supabase code here.
 - **`/admin`** — a hidden page that adds the upload and remove tools, gated by
-  an email allowlist (`ADMIN_EMAILS`) via Supabase magic-link login. The gate is
-  enforced on the server, so the upload APIs reject anyone not on the list — the
-  hidden URL is just convenience, not the security.
+  an email allowlist (`ADMIN_EMAILS`) via **Sign in with Google**. The gate is
+  enforced on the server, so the upload APIs reject anyone whose Google email
+  isn't on the list — the hidden URL is just convenience, not the security.
 
 Files never pass through the serverless function. The server mints a
 **pre-authorized upload URL** and the browser PUTs the file straight to Storage,
@@ -69,17 +69,27 @@ then **redeploy**.
 - `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` are used **only by
   the `/admin` login page** (the anon key is meant to be public).
 
-### Enable admin login
+### Enable admin login (Sign in with Google)
 
-In the Supabase dashboard → **Authentication → URL Configuration**, add your site
-URLs to **Redirect URLs** so the magic link can return:
+1. **Google Cloud Console** → APIs & Services → Credentials → create an **OAuth
+   client ID** (type: Web application). Under **Authorized redirect URIs** add:
 
-- `http://localhost:3000/admin` (local dev)
-- `https://your-app.vercel.app/admin` (production)
+   ```
+   https://<your-project-ref>.supabase.co/auth/v1/callback
+   ```
 
-Then visit `/admin`, enter an allowlisted email, and open the link Supabase
-emails you. (Free-tier email sending is rate-limited but fine for occasional
-admin logins; add custom SMTP if you need more.)
+   Copy the **Client ID** and **Client secret**.
+
+2. **Supabase dashboard** → Authentication → **Providers → Google** → enable it
+   and paste the Client ID + secret.
+
+3. **Supabase dashboard** → Authentication → **URL Configuration**:
+   - **Site URL** → your production URL, e.g. `https://your-app.vercel.app`
+   - **Redirect URLs** → add `https://your-app.vercel.app/**` and
+     `http://localhost:3000/**`
+
+Then visit `/admin`, click **Continue with Google**, and sign in with an account
+whose email is in `ADMIN_EMAILS`.
 
 ### 3. Run
 

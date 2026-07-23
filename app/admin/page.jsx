@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 import Archive from "@/components/Archive";
-import { INK, PAPER, BLUE, MUTE, DISPLAY, MONO } from "@/lib/ui";
+import { INK, PAPER, MUTE, DISPLAY, MONO } from "@/lib/ui";
 
 /* Browser Supabase client — used ONLY for admin email login. The anon key is
    safe to expose. If the public env vars aren't set, we show a clear message
@@ -15,8 +15,6 @@ const supabase = SB_URL && SB_ANON ? createClient(SB_URL, SB_ANON) : null;
 export default function AdminPage() {
   const [status, setStatus] = useState("loading"); // loading | signedout | denied | admin
   const [token, setToken] = useState(null);
-  const [email, setEmail] = useState("");
-  const [sent, setSent] = useState(false);
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -47,23 +45,23 @@ export default function AdminPage() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  const sendLink = async () => {
+  const signIn = async () => {
     setMsg("");
-    if (!email.trim()) return setMsg("Enter your email.");
     setBusy(true);
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: { emailRedirectTo: `${window.location.origin}/admin` },
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/admin` },
     });
-    setBusy(false);
-    if (error) return setMsg(error.message);
-    setSent(true);
+    // On success the browser redirects to Google; only errors return here.
+    if (error) {
+      setBusy(false);
+      setMsg(error.message);
+    }
   };
 
   const signOut = async () => {
     await supabase.auth.signOut();
     setToken(null);
-    setSent(false);
     setStatus("signedout");
   };
 
@@ -132,46 +130,55 @@ export default function AdminPage() {
     );
   }
 
-  /* ---- signed out: email login ---- */
+  /* ---- signed out: Google login ---- */
   return (
     <Shell>
       <h1 className="text-4xl font-bold mb-2" style={{ letterSpacing: "-0.03em" }}>
         Admin
       </h1>
-      {sent ? (
-        <p className="text-sm" style={{ color: MUTE }}>
-          Check <b>{email}</b> for a sign-in link, then open it on this device.
+      <p className="text-sm mb-5" style={{ color: MUTE }}>
+        Sign in with your authorized Google account.
+      </p>
+      {msg && (
+        <p className="text-sm mb-3" style={{ color: "#B3261E" }}>
+          {msg}
         </p>
-      ) : (
-        <>
-          <p className="text-sm mb-5" style={{ color: MUTE }}>
-            Enter your email to get a one-time sign-in link.
-          </p>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && sendLink()}
-            placeholder="you@example.com"
-            className="w-full px-3 py-2 text-sm bg-white border mb-3"
-            style={{ borderColor: "#B6C2CF" }}
-          />
-          {msg && (
-            <p className="text-sm mb-3" style={{ color: "#B3261E" }}>
-              {msg}
-            </p>
-          )}
-          <button
-            onClick={sendLink}
-            disabled={busy}
-            className="text-[11px] tracking-widest px-5 py-2.5 disabled:opacity-50"
-            style={{ fontFamily: MONO, background: BLUE, color: "#fff" }}
-          >
-            {busy ? "SENDING…" : "SEND LOGIN LINK"}
-          </button>
-        </>
       )}
+      <button
+        onClick={signIn}
+        disabled={busy}
+        className="flex items-center gap-3 px-5 py-2.5 bg-white border disabled:opacity-50"
+        style={{ borderColor: "#B6C2CF" }}
+      >
+        <GoogleMark />
+        <span className="text-[11px] tracking-widest" style={{ fontFamily: MONO, color: INK }}>
+          {busy ? "REDIRECTING…" : "CONTINUE WITH GOOGLE"}
+        </span>
+      </button>
     </Shell>
+  );
+}
+
+function GoogleMark() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+      <path
+        fill="#4285F4"
+        d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"
+      />
+      <path
+        fill="#34A853"
+        d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z"
+      />
+      <path
+        fill="#EA4335"
+        d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"
+      />
+    </svg>
   );
 }
 
