@@ -321,9 +321,10 @@ function Reader({ doc, onBack }) {
             </p>
           </div>
         ) : src ? (
-          // #toolbar=0 hides the browser PDF top bar (download / print / rotate).
+          // #toolbar=0 hides the browser PDF top bar; page=1 + view=FitH open
+          // at the top of the first page, fit to width (not scrolled/centered).
           <iframe
-            src={`${src}#toolbar=0&navpanes=0&statusbar=0`}
+            src={`${src}#page=1&view=FitH&toolbar=0&navpanes=0&statusbar=0`}
             title={doc.title}
             className="w-full h-[82vh] bg-white"
           />
