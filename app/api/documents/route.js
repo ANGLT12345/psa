@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { requireAdmin } from "@/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,6 +32,9 @@ export async function GET(req) {
  * metadata row here, including the r2_key returned by /api/upload-url.
  */
 export async function POST(req) {
+  const gate = await requireAdmin(req);
+  if (gate.error) return NextResponse.json({ error: gate.error }, { status: gate.status });
+
   let body;
   try {
     body = await req.json();

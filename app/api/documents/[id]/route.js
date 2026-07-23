@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
+import { requireAdmin } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -8,7 +9,10 @@ export const runtime = "nodejs";
  * Removes the metadata row and the underlying Storage object together, so we
  * don't leave orphaned PDFs eating the 1 GB bucket.
  */
-export async function DELETE(_req, { params }) {
+export async function DELETE(req, { params }) {
+  const gate = await requireAdmin(req);
+  if (gate.error) return NextResponse.json({ error: gate.error }, { status: gate.status });
+
   const { id } = params;
 
   const { data: doc, error: readErr } = await supabaseAdmin

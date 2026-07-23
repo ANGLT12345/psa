@@ -13,11 +13,19 @@ to link a credit card to switch it on, so for a small, card-free archive
 Supabase alone is the cleaner fit. If you later outgrow it, the storage layer is
 isolated behind four API routes and swapping in R2 is a small change.
 
+There are two pages:
+
+- **`/`** — the public, read-only catalogue. No upload controls, no login, no
+  technical labels. The browser ships zero Supabase code here.
+- **`/admin`** — a hidden page that adds the upload and remove tools, gated by
+  an email allowlist (`ADMIN_EMAILS`) via Supabase magic-link login. The gate is
+  enforced on the server, so the upload APIs reject anyone not on the list — the
+  hidden URL is just convenience, not the security.
+
 Files never pass through the serverless function. The server mints a
 **pre-authorized upload URL** and the browser PUTs the file straight to Storage,
 so there's no request-body size limit. Reads go through a **short-lived signed
-URL** so the bucket stays private. The browser holds no Supabase credentials at
-all — every secret stays on the server.
+URL** so the bucket stays private.
 
 ```
 Browser ──POST /api/upload-url──▶ Vercel ──sign──▶ { path, signedUrl }
@@ -53,10 +61,25 @@ Copy `.env.example` to `.env.local` and fill it in from Project Settings → API
 On Vercel, add the same variables in Project Settings → Environment Variables,
 then **redeploy**.
 
-- Only **three** vars, and all are **server-only** — the browser never receives
-  a Supabase credential.
-- `SUPABASE_URL` must include `https://`.
-- `SUPABASE_SERVICE_ROLE_KEY` is the `service_role` secret (not the anon key).
+- `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` are **server-only** (the
+  `service_role` secret, not the anon key). `SUPABASE_URL` must include
+  `https://`.
+- `ADMIN_EMAILS` is a comma-separated allowlist of who may sign in at `/admin`
+  and upload.
+- `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` are used **only by
+  the `/admin` login page** (the anon key is meant to be public).
+
+### Enable admin login
+
+In the Supabase dashboard → **Authentication → URL Configuration**, add your site
+URLs to **Redirect URLs** so the magic link can return:
+
+- `http://localhost:3000/admin` (local dev)
+- `https://your-app.vercel.app/admin` (production)
+
+Then visit `/admin`, enter an allowlisted email, and open the link Supabase
+emails you. (Free-tier email sending is rate-limited but fine for occasional
+admin logins; add custom SMTP if you need more.)
 
 ### 3. Run
 
@@ -71,11 +94,15 @@ Open http://localhost:3000.
 
 | Route                | Method | Purpose                                              |
 | -------------------- | ------ | ---------------------------------------------------- |
-| `/api/upload-url`    | POST   | Mint a pre-authorized upload URL `{ path, signedUrl }`|
-| `/api/documents`     | GET    | List entries (optional `?year=`)                     |
-| `/api/documents`     | POST   | Insert a metadata row after the upload               |
-| `/api/documents/:id` | DELETE | Remove the row **and** the Storage object            |
-| `/api/view-url/:id`  | GET    | Sign a short-lived download URL for the reader        |
+| `/api/upload-url`    | POST   | Mint a pre-authorized upload URL `{ path, signedUrl }` · **admin** |
+| `/api/documents`     | GET    | List entries (optional `?year=`) · public            |
+| `/api/documents`     | POST   | Insert a metadata row after the upload · **admin**   |
+| `/api/documents/:id` | DELETE | Remove the row **and** the Storage object · **admin** |
+| `/api/view-url/:id`  | GET    | Sign a short-lived download URL for the reader · public |
+| `/api/admin/me`      | GET    | Report whether the caller is an allowlisted admin    |
+
+"admin" routes require a `Bearer` access token from a Supabase session whose
+email is in `ADMIN_EMAILS`.
 
 ## Notes
 

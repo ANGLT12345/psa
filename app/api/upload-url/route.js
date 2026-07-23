@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { supabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
+import { requireAdmin } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -8,8 +9,12 @@ export const runtime = "nodejs";
  * Step 1 of the upload. The browser asks for a signed upload token. The file
  * never touches this function — the browser uploads it straight to Supabase
  * Storage with the token — so there is no serverless body-size limit.
+ * Admin-only.
  */
 export async function POST(req) {
+  const gate = await requireAdmin(req);
+  if (gate.error) return NextResponse.json({ error: gate.error }, { status: gate.status });
+
   let body;
   try {
     body = await req.json();
