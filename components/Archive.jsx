@@ -59,7 +59,7 @@ export default function Archive({ admin = false, token = null }) {
   if (open) return <Reader doc={open} onBack={() => setOpen(null)} />;
 
   return (
-    <div className="min-h-screen flex" style={{ background: PAPER, color: INK, fontFamily: DISPLAY }}>
+    <div className="archive-enter min-h-screen flex" style={{ background: PAPER, color: INK, fontFamily: DISPLAY }}>
       {/* year rail */}
       <aside
         className="w-16 md:w-24 shrink-0 flex flex-col items-center justify-start gap-2 py-6 border-r"
@@ -102,7 +102,7 @@ export default function Archive({ admin = false, token = null }) {
             <img
               src="/logo.png"
               alt="SST Science Communication"
-              className="h-14 md:h-20 w-auto"
+              className="h-24 md:h-32 w-auto"
               onError={(e) => {
                 e.currentTarget.style.display = "none";
               }}
@@ -283,12 +283,12 @@ function Reader({ doc, onBack }) {
   }, [doc.id]);
 
   return (
-    <div className="min-h-screen" style={{ background: INK, color: PAPER, fontFamily: DISPLAY }}>
+    <div className="archive-enter min-h-screen" style={{ background: PAPER, color: INK, fontFamily: DISPLAY }}>
       <div className="px-5 md:px-10 py-5 flex items-center justify-between">
-        <button onClick={onBack} className="text-[11px] tracking-widest" style={{ fontFamily: MONO, color: AMBER }}>
+        <button onClick={onBack} className="text-[11px] tracking-widest" style={{ fontFamily: MONO, color: BLUE }}>
           ← BACK TO CATALOGUE
         </button>
-        <span className="text-[11px] tracking-widest" style={{ fontFamily: MONO, color: "#7A8AA0" }}>
+        <span className="text-[11px] tracking-widest" style={{ fontFamily: MONO, color: MUTE }}>
           {doc.year}
         </span>
       </div>
@@ -298,11 +298,11 @@ function Reader({ doc, onBack }) {
           {doc.title}
         </h1>
         {doc.summary && (
-          <p className="mt-3 text-base md:text-lg" style={{ color: "#B8C4D2" }}>
+          <p className="mt-3 text-base md:text-lg" style={{ color: MUTE }}>
             {doc.summary}
           </p>
         )}
-        <p className="mt-3 text-[11px] tracking-widest" style={{ fontFamily: MONO, color: "#7A8AA0" }}>
+        <p className="mt-3 text-[11px] tracking-widest" style={{ fontFamily: MONO, color: MUTE }}>
           CURATED BY {doc.author?.toUpperCase()}
         </p>
       </div>
