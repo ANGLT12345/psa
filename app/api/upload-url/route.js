@@ -34,6 +34,14 @@ export async function POST(req) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // The browser uses { path, token } with storage.uploadToSignedUrl(...).
-  return NextResponse.json({ path: data.path, token: data.token });
+  // data.signedUrl is an absolute, pre-authorized URL (the token is baked into
+  // its query string). The browser just PUTs the file to it — no Supabase SDK
+  // and no public env vars needed on the client.
+  let signedUrl = data.signedUrl;
+  if (!/^https?:\/\//i.test(signedUrl)) {
+    const base = String(process.env.SUPABASE_URL).replace(/\/$/, "");
+    signedUrl = `${base}/storage/v1${signedUrl.startsWith("/") ? "" : "/"}${signedUrl}`;
+  }
+
+  return NextResponse.json({ path: data.path, signedUrl });
 }

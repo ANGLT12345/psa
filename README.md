@@ -13,14 +13,15 @@ to link a credit card to switch it on, so for a small, card-free archive
 Supabase alone is the cleaner fit. If you later outgrow it, the storage layer is
 isolated behind four API routes and swapping in R2 is a small change.
 
-Files never pass through the serverless function. The browser uploads straight
-to Storage with a **one-time signed token**, so there's no request-body size
-limit, and reads go through a **short-lived signed URL** so the bucket stays
-private.
+Files never pass through the serverless function. The server mints a
+**pre-authorized upload URL** and the browser PUTs the file straight to Storage,
+so there's no request-body size limit. Reads go through a **short-lived signed
+URL** so the bucket stays private. The browser holds no Supabase credentials at
+all — every secret stays on the server.
 
 ```
-Browser ──POST /api/upload-url──▶ Vercel ──sign──▶ { path, token }
-Browser ──uploadToSignedUrl─────────────────────▶ Supabase Storage
+Browser ──POST /api/upload-url──▶ Vercel ──sign──▶ { path, signedUrl }
+Browser ──PUT file──────────────────────────────▶ Supabase Storage
 Browser ──POST /api/documents──▶ Vercel ──insert─▶ Supabase (metadata row)
 
 Reader  ──GET /api/view-url/:id▶ Vercel ──sign──▶ signed URL ──▶ Storage
@@ -29,7 +30,7 @@ Reader  ──GET /api/view-url/:id▶ Vercel ──sign──▶ signed URL ─
 ## Stack
 
 - Next.js 14 (App Router) on Vercel
-- `@supabase/supabase-js` — service-role on the server, anon key on the client
+- `@supabase/supabase-js` — server-only (service-role)
 - Tailwind CSS
 
 ## Setup
@@ -49,12 +50,13 @@ Public = **off**.)
 ### 2. Environment variables
 
 Copy `.env.example` to `.env.local` and fill it in from Project Settings → API.
-On Vercel, add the same variables in Project Settings → Environment Variables.
+On Vercel, add the same variables in Project Settings → Environment Variables,
+then **redeploy**.
 
-- `SUPABASE_SERVICE_ROLE_KEY` is **server-only** — it's never sent to the
-  browser.
-- The `NEXT_PUBLIC_*` values are meant to be public (the anon key is safe to
-  expose); the browser needs them only to finish the signed upload.
+- Only **three** vars, and all are **server-only** — the browser never receives
+  a Supabase credential.
+- `SUPABASE_URL` must include `https://`.
+- `SUPABASE_SERVICE_ROLE_KEY` is the `service_role` secret (not the anon key).
 
 ### 3. Run
 
@@ -69,7 +71,7 @@ Open http://localhost:3000.
 
 | Route                | Method | Purpose                                              |
 | -------------------- | ------ | ---------------------------------------------------- |
-| `/api/upload-url`    | POST   | Mint a one-time signed upload token `{ path, token }`|
+| `/api/upload-url`    | POST   | Mint a pre-authorized upload URL `{ path, signedUrl }`|
 | `/api/documents`     | GET    | List entries (optional `?year=`)                     |
 | `/api/documents`     | POST   | Insert a metadata row after the upload               |
 | `/api/documents/:id` | DELETE | Remove the row **and** the Storage object            |

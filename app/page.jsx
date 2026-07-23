@@ -1,15 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { createClient } from "@supabase/supabase-js";
-
-/* Browser Supabase client — anon key is safe to expose; the upload is
-   authorized by the one-time signed token minted server-side. */
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
-const STORAGE_BUCKET = process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET || "documents";
 
 /* ---------- tokens ---------- */
 const INK = "#0E1726";
@@ -337,9 +328,9 @@ function NewEntry({ onSaved, onCancel }) {
     const author = f.author.trim() || "Unattributed";
     setBusy(true);
     try {
-      // 1. Ask the server for a one-time signed upload token.
+      // 1. Ask the server for a pre-authorized upload URL.
       setPhase("SIGNING UPLOAD…");
-      const { path, token } = await jsonOrThrow(
+      const { path, signedUrl } = await jsonOrThrow(
         await fetch("/api/upload-url", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -347,12 +338,23 @@ function NewEntry({ onSaved, onCancel }) {
         })
       );
 
-      // 2. Upload the file straight to Supabase Storage — never through our function.
+      // 2. Upload the file straight to Supabase Storage with a plain PUT — the
+      //    file never passes through our function, so no body-size limit.
       setPhase("UPLOADING…");
-      const { error: upErr } = await supabase.storage
-        .from(STORAGE_BUCKET)
-        .uploadToSignedUrl(path, token, file, { contentType: "application/pdf" });
-      if (upErr) throw new Error(upErr.message || "Upload was rejected.");
+      const put = await fetch(signedUrl, {
+        method: "PUT",
+        headers: { "Content-Type": "application/pdf" },
+        body: file,
+      });
+      if (!put.ok) {
+        // Read as text so a non-JSON error body can't crash the parse.
+        const raw = await put.text().catch(() => "");
+        let detail = raw;
+        try {
+          detail = JSON.parse(raw).message || detail;
+        } catch {}
+        throw new Error(`Upload failed (${put.status})${detail ? `: ${detail}` : ""}.`);
+      }
 
       // 3. Record the metadata row.
       setPhase("FILING METADATA…");
