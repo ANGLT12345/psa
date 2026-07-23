@@ -9,6 +9,45 @@ export const runtime = "nodejs";
  * Removes the metadata row and the underlying Storage object together, so we
  * don't leave orphaned PDFs eating the 1 GB bucket.
  */
+/**
+ * PATCH /api/documents/:id
+ * Update an existing entry's metadata (not the file). Admin-only.
+ */
+export async function PATCH(req, { params }) {
+  const gate = await requireAdmin(req);
+  if (gate.error) return NextResponse.json({ error: gate.error }, { status: gate.status });
+
+  const { id } = params;
+
+  let body;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+  }
+
+  const { title, author, year, summary } = body || {};
+  if (!title || !String(title).trim()) {
+    return NextResponse.json({ error: "Every entry needs a title." }, { status: 400 });
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("documents")
+    .update({
+      title: String(title).trim(),
+      author: String(author || "Unattributed").trim() || "Unattributed",
+      year: Number(year),
+      summary: summary ? String(summary).trim() : null,
+    })
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data) return NextResponse.json({ error: "Entry not found." }, { status: 404 });
+  return NextResponse.json({ document: data });
+}
+
 export async function DELETE(req, { params }) {
   const gate = await requireAdmin(req);
   if (gate.error) return NextResponse.json({ error: gate.error }, { status: gate.status });

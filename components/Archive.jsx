@@ -21,6 +21,7 @@ export default function Archive({ admin = false, token = null }) {
   const [year, setYear] = useState(2026);
   const [open, setOpen] = useState(null);
   const [panel, setPanel] = useState(null); // 'new'
+  const [editing, setEditing] = useState(null); // doc being edited
   const [ready, setReady] = useState(false);
   const [loadErr, setLoadErr] = useState("");
 
@@ -172,6 +173,7 @@ export default function Archive({ admin = false, token = null }) {
                 idx={catalogueId(d, i)}
                 admin={admin}
                 onOpen={() => setOpen(d)}
+                onEdit={() => setEditing(d)}
                 onRemove={() => removeDoc(d.id)}
               />
             ))
@@ -190,12 +192,25 @@ export default function Archive({ admin = false, token = null }) {
           }}
         />
       )}
+
+      {admin && editing && (
+        <EditEntry
+          token={token}
+          doc={editing}
+          onCancel={() => setEditing(null)}
+          onSaved={(updated) => {
+            setDocs((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
+            setYear(updated.year);
+            setEditing(null);
+          }}
+        />
+      )}
     </div>
   );
 }
 
 /* ---------- row ---------- */
-function Row({ doc, idx, admin, onOpen, onRemove }) {
+function Row({ doc, idx, admin, onOpen, onEdit, onRemove }) {
   const [hover, setHover] = useState(false);
   return (
     <div
@@ -226,13 +241,22 @@ function Row({ doc, idx, admin, onOpen, onRemove }) {
         </span>
       </button>
       {admin && hover && (
-        <button
-          onClick={onRemove}
-          className="absolute right-0 top-2 text-[10px] tracking-widest px-2 py-1"
-          style={{ fontFamily: MONO, color: "#B3261E" }}
-        >
-          REMOVE
-        </button>
+        <div className="absolute right-0 top-2 flex gap-3">
+          <button
+            onClick={onEdit}
+            className="text-[10px] tracking-widest px-2 py-1"
+            style={{ fontFamily: MONO, color: BLUE }}
+          >
+            EDIT
+          </button>
+          <button
+            onClick={onRemove}
+            className="text-[10px] tracking-widest px-2 py-1"
+            style={{ fontFamily: MONO, color: "#B3261E" }}
+          >
+            REMOVE
+          </button>
+        </div>
       )}
     </div>
   );
@@ -442,6 +466,93 @@ function NewEntry({ token, onSaved, onCancel }) {
           style={{ fontFamily: MONO, background: BLUE, color: "#fff" }}
         >
           {busy ? phase || "WORKING…" : "FILE IT"}
+        </button>
+        <button onClick={onCancel} className="text-[11px] tracking-widest px-3 py-2.5" style={{ fontFamily: MONO, color: MUTE }}>
+          CANCEL
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+/* ---------- edit entry (admin only) ---------- */
+function EditEntry({ token, doc, onSaved, onCancel }) {
+  const [f, setF] = useState({
+    title: doc.title || "",
+    author: doc.author === "Unattributed" ? "" : doc.author || "",
+    year: doc.year || YEARS[0],
+    summary: doc.summary || "",
+  });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  const set = (k) => (e) => setF({ ...f, [k]: k === "year" ? Number(e.target.value) : e.target.value });
+  const field = "w-full px-3 py-2 text-sm bg-white border";
+  const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+
+  const submit = async () => {
+    setErr("");
+    if (!f.title.trim()) return setErr("Every entry needs a title.");
+    const author = f.author.trim() || "Unattributed";
+    setBusy(true);
+    try {
+      const { document } = await jsonOrThrow(
+        await fetch(`/api/documents/${doc.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", ...authHeaders },
+          body: JSON.stringify({ title: f.title, author, year: f.year, summary: f.summary }),
+        })
+      );
+      onSaved(document);
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal title="Edit entry" onCancel={onCancel}>
+      <Field label="Title">
+        <input className={field} style={{ borderColor: "#B6C2CF" }} value={f.title} onChange={set("title")} />
+      </Field>
+
+      <Field label="Year">
+        <select className={field} style={{ borderColor: "#B6C2CF" }} value={f.year} onChange={set("year")}>
+          {YEARS.map((y) => (
+            <option key={y}>{y}</option>
+          ))}
+        </select>
+      </Field>
+
+      <Field label="Curated by">
+        <input className={field} style={{ borderColor: "#B6C2CF" }} value={f.author} onChange={set("author")} />
+      </Field>
+
+      <Field label="Summary">
+        <textarea
+          className={field}
+          style={{ borderColor: "#B6C2CF" }}
+          rows={4}
+          value={f.summary}
+          onChange={set("summary")}
+        />
+      </Field>
+
+      {err && (
+        <p className="text-sm mt-3" style={{ color: "#B3261E" }}>
+          {err}
+        </p>
+      )}
+
+      <div className="flex gap-3 mt-6">
+        <button
+          onClick={submit}
+          disabled={busy}
+          className="text-[11px] tracking-widest px-5 py-2.5 disabled:opacity-50"
+          style={{ fontFamily: MONO, background: BLUE, color: "#fff" }}
+        >
+          {busy ? "SAVING…" : "SAVE CHANGES"}
         </button>
         <button onClick={onCancel} className="text-[11px] tracking-widest px-3 py-2.5" style={{ fontFamily: MONO, color: MUTE }}>
           CANCEL
