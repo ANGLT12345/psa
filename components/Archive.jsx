@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { INK, PAPER, BLUE, AMBER, MUTE, DISPLAY, MONO, YEARS, KINDS } from "@/lib/ui";
+import { INK, PAPER, BLUE, AMBER, MUTE, DISPLAY, MONO, YEARS } from "@/lib/ui";
 
 /* ---------- helpers ---------- */
 const catalogueId = (doc, i) => `${String(doc.year).slice(2)}-${String(i + 1).padStart(3, "0")}`;
@@ -214,8 +214,6 @@ function Row({ doc, idx, admin, onOpen, onRemove }) {
           )}
         </span>
         <span className="hidden md:block text-[10px] tracking-widest shrink-0 text-right" style={{ fontFamily: MONO, color: MUTE }}>
-          {doc.kind}
-          <br />
           {doc.author}
         </span>
       </button>
@@ -259,7 +257,7 @@ function Reader({ doc, onBack }) {
           ← BACK TO CATALOGUE
         </button>
         <span className="text-[11px] tracking-widest" style={{ fontFamily: MONO, color: "#7A8AA0" }}>
-          {doc.kind} / {doc.year}
+          {doc.year}
         </span>
       </div>
 
@@ -273,7 +271,7 @@ function Reader({ doc, onBack }) {
           </p>
         )}
         <p className="mt-3 text-[11px] tracking-widest" style={{ fontFamily: MONO, color: "#7A8AA0" }}>
-          FILED BY {doc.author?.toUpperCase()}
+          CURATED BY {doc.author?.toUpperCase()}
         </p>
       </div>
 
@@ -301,7 +299,7 @@ function Reader({ doc, onBack }) {
 
 /* ---------- new entry (admin only) ---------- */
 function NewEntry({ token, onSaved, onCancel }) {
-  const [f, setF] = useState({ title: "", author: "", kind: KINDS[0], year: 2026, summary: "" });
+  const [f, setF] = useState({ title: "", author: "", year: 2026, summary: "" });
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
   const [phase, setPhase] = useState("");
@@ -357,7 +355,6 @@ function NewEntry({ token, onSaved, onCancel }) {
           body: JSON.stringify({
             title: f.title,
             author,
-            kind: f.kind,
             year: f.year,
             summary: f.summary,
             storage_path: path,
@@ -401,29 +398,26 @@ function NewEntry({ token, onSaved, onCancel }) {
         <input className={field} style={{ borderColor: "#B6C2CF" }} value={f.title} onChange={set("title")} />
       </Field>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Year">
-          <select className={field} style={{ borderColor: "#B6C2CF" }} value={f.year} onChange={set("year")}>
-            {YEARS.map((y) => (
-              <option key={y}>{y}</option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Kind">
-          <select className={field} style={{ borderColor: "#B6C2CF" }} value={f.kind} onChange={set("kind")}>
-            {KINDS.map((k) => (
-              <option key={k}>{k}</option>
-            ))}
-          </select>
-        </Field>
-      </div>
+      <Field label="Year">
+        <select className={field} style={{ borderColor: "#B6C2CF" }} value={f.year} onChange={set("year")}>
+          {YEARS.map((y) => (
+            <option key={y}>{y}</option>
+          ))}
+        </select>
+      </Field>
 
-      <Field label="Filed by">
+      <Field label="Curated by">
         <input className={field} style={{ borderColor: "#B6C2CF" }} value={f.author} onChange={set("author")} />
       </Field>
 
-      <Field label="One-line summary">
-        <input className={field} style={{ borderColor: "#B6C2CF" }} value={f.summary} onChange={set("summary")} />
+      <Field label="Summary">
+        <textarea
+          className={field}
+          style={{ borderColor: "#B6C2CF" }}
+          rows={4}
+          value={f.summary}
+          onChange={set("summary")}
+        />
       </Field>
 
       {err && (

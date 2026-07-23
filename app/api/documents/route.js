@@ -42,7 +42,7 @@ export async function POST(req) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const { title, author, kind, year, summary, storage_path, size_bytes } = body || {};
+  const { title, author, year, summary, storage_path, size_bytes } = body || {};
 
   if (!title || !String(title).trim()) {
     return NextResponse.json({ error: "Every entry needs a title." }, { status: 400 });
@@ -56,7 +56,6 @@ export async function POST(req) {
     .insert({
       title: String(title).trim(),
       author: String(author || "Unattributed").trim() || "Unattributed",
-      kind: kind || "REFERENCE",
       year: Number(year),
       summary: summary ? String(summary).trim() : null,
       storage_path,

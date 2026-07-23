@@ -10,7 +10,6 @@ create table if not exists public.documents (
   id           uuid primary key default gen_random_uuid(),
   title        text        not null,
   author       text        not null default 'Unattributed',
-  kind         text        not null,
   year         integer     not null,
   summary      text,
   storage_path text        not null unique,
