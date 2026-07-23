@@ -247,7 +247,7 @@ function Reader({ doc, onBack }) {
     let alive = true;
     (async () => {
       try {
-        const { url } = await jsonOrThrow(await fetch(`/api/view-url/${doc.id}`));
+        const { url } = await jsonOrThrow(await fetch(`/api/view-url/${doc.id}`, { cache: "no-store" }));
         if (alive) setSrc(url);
       } catch (e) {
         if (alive) setErr(e.message);

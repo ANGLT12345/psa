@@ -24,11 +24,16 @@ export async function GET(_req, { params }) {
 
   const { data, error: signErr } = await supabaseAdmin.storage
     .from(STORAGE_BUCKET)
-    .createSignedUrl(doc.storage_path, 600); // 10 minutes
+    .createSignedUrl(doc.storage_path, 3600); // 1 hour, so a viewing session doesn't expire mid-read
 
   if (signErr) {
     return NextResponse.json({ error: signErr.message }, { status: 500 });
   }
 
-  return NextResponse.json({ url: data.signedUrl });
+  // Never cache this response: a cached (and later expired) signed URL is what
+  // produces "InvalidJWT: exp claim timestamp check failed" on reopen.
+  return NextResponse.json(
+    { url: data.signedUrl },
+    { headers: { "Cache-Control": "no-store, max-age=0" } }
+  );
 }
