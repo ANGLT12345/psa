@@ -1,6 +1,15 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+/* Browser Supabase client — anon key is safe to expose; the upload is
+   authorized by the one-time signed token minted server-side. */
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
+const STORAGE_BUCKET = process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET || "documents";
 
 /* ---------- tokens ---------- */
 const INK = "#0E1726";
@@ -151,7 +160,7 @@ export default function Archive() {
                 Nothing filed under {year}.
               </p>
               <p className="text-sm mb-5" style={{ color: MUTE }}>
-                Upload a PDF and it lands here — stored in Cloudflare R2, catalogued in Supabase.
+                Upload a PDF and it lands here — stored and catalogued in Supabase.
               </p>
               <button
                 onClick={() => setPanel("new")}
@@ -219,7 +228,7 @@ function Row({ doc, idx, onOpen, onRemove }) {
         <span className="hidden md:block text-[10px] tracking-widest shrink-0 text-right" style={{ fontFamily: MONO, color: MUTE }}>
           {doc.kind}
           <br />
-          R2
+          SUPABASE
           <br />
           {doc.author}
         </span>
@@ -300,7 +309,7 @@ function Reader({ doc, onBack }) {
           </div>
         )}
         <p className="mt-3 text-[10px] tracking-widest" style={{ fontFamily: MONO, color: "#7A8AA0" }}>
-          SERVED VIA PRESIGNED R2 URL · EXPIRES IN 10 MINUTES
+          SERVED VIA SIGNED URL · EXPIRES IN 10 MINUTES
         </p>
       </div>
     </div>
@@ -328,9 +337,9 @@ function NewEntry({ onSaved, onCancel }) {
     const author = f.author.trim() || "Unattributed";
     setBusy(true);
     try {
-      // 1. Ask the server for a presigned PUT URL.
+      // 1. Ask the server for a one-time signed upload token.
       setPhase("SIGNING UPLOAD…");
-      const { uploadUrl, key } = await jsonOrThrow(
+      const { path, token } = await jsonOrThrow(
         await fetch("/api/upload-url", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -338,14 +347,12 @@ function NewEntry({ onSaved, onCancel }) {
         })
       );
 
-      // 2. Upload the file straight to R2 — never through our function.
-      setPhase("UPLOADING TO R2…");
-      const put = await fetch(uploadUrl, {
-        method: "PUT",
-        headers: { "Content-Type": "application/pdf" },
-        body: file,
-      });
-      if (!put.ok) throw new Error(`R2 rejected the upload (${put.status}).`);
+      // 2. Upload the file straight to Supabase Storage — never through our function.
+      setPhase("UPLOADING…");
+      const { error: upErr } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .uploadToSignedUrl(path, token, file, { contentType: "application/pdf" });
+      if (upErr) throw new Error(upErr.message || "Upload was rejected.");
 
       // 3. Record the metadata row.
       setPhase("FILING METADATA…");
@@ -359,7 +366,7 @@ function NewEntry({ onSaved, onCancel }) {
             kind: f.kind,
             year: f.year,
             summary: f.summary,
-            r2_key: key,
+            storage_path: path,
             size_bytes: file.size,
           }),
         })
@@ -392,7 +399,7 @@ function NewEntry({ onSaved, onCancel }) {
           {file ? `${file.name} · ${(file.size / 1e6).toFixed(1)} MB` : "Choose a PDF from your computer"}
         </button>
         <p className="mt-2 text-[10px] tracking-wide" style={{ fontFamily: MONO, color: MUTE }}>
-          UPLOADS DIRECTLY TO CLOUDFLARE R2 · NO FILE-SIZE LIMIT FROM THE SERVER
+          UPLOADS DIRECTLY TO SUPABASE STORAGE · NO SERVER SIZE LIMIT
         </p>
       </div>
 

@@ -1,68 +1,62 @@
 # The Archive
 
-A PDF document archive that splits the two jobs the right way:
+A PDF document archive built entirely on **Supabase** — no credit card, no
+second vendor:
 
-- **Cloudflare R2** holds the PDFs. Free tier is 10 GB storage, 1M writes /
-  10M reads per month, and **$0 egress** — which is the part that matters, since
-  every viewer streams the whole file. Beyond the free tier it's ~$0.015/GB/mo.
-- **Supabase Postgres** holds the metadata (title, year, kind, author, the R2
-  object key). That's kilobytes; 500 MB is enormous for this.
+- **Supabase Storage** (private bucket) holds the PDFs.
+- **Supabase Postgres** holds the metadata (title, year, kind, author, the
+  storage path).
+
+Free tier is **1 GB storage + 5 GB egress/month** and requires **no payment
+method**. Cloudflare R2 gives more headroom (10 GB, free egress) but forces you
+to link a credit card to switch it on, so for a small, card-free archive
+Supabase alone is the cleaner fit. If you later outgrow it, the storage layer is
+isolated behind four API routes and swapping in R2 is a small change.
 
 Files never pass through the serverless function. The browser uploads straight
-to R2 with a **presigned PUT**, so there's no 4.5 MB body limit, and reads go
-through a **short-lived presigned GET** so the bucket can stay private.
+to Storage with a **one-time signed token**, so there's no request-body size
+limit, and reads go through a **short-lived signed URL** so the bucket stays
+private.
 
 ```
-Browser ──POST /api/upload-url──▶ Vercel ──sign──▶ presigned PUT URL
-Browser ──PUT file────────────────────────────────▶ Cloudflare R2
-Browser ──POST /api/documents──▶ Vercel ──insert──▶ Supabase (metadata row)
+Browser ──POST /api/upload-url──▶ Vercel ──sign──▶ { path, token }
+Browser ──uploadToSignedUrl─────────────────────▶ Supabase Storage
+Browser ──POST /api/documents──▶ Vercel ──insert─▶ Supabase (metadata row)
 
-Reader  ──GET /api/view-url/:id▶ Vercel ──sign──▶ presigned GET URL ──▶ R2
+Reader  ──GET /api/view-url/:id▶ Vercel ──sign──▶ signed URL ──▶ Storage
 ```
 
 ## Stack
 
 - Next.js 14 (App Router) on Vercel
-- `@aws-sdk/client-s3` + `s3-request-presigner` (R2 is S3-compatible)
-- `@supabase/supabase-js` (service-role, server-only)
+- `@supabase/supabase-js` — service-role on the server, anon key on the client
 - Tailwind CSS
 
 ## Setup
 
-### 1. Supabase
+### 1. Create a Supabase project
 
-Create a project, then run [`supabase/schema.sql`](supabase/schema.sql) in the
-SQL editor. It creates the `documents` table and an index. RLS is on with no
-policies — all access is server-side via the service-role key.
+Free plan, no card. Then in the **SQL editor** run
+[`supabase/schema.sql`](supabase/schema.sql). It:
 
-### 2. Cloudflare R2
+- creates the `documents` table + index (RLS on, no policies — server-only
+  access), and
+- creates a **private** Storage bucket named `documents`.
 
-1. Create a bucket (e.g. `the-archive`). Keep it **private**.
-2. Create an R2 API token with **Object Read & Write** on that bucket.
-3. Add a **CORS policy** to the bucket so the browser's presigned PUT is
-   allowed. In the bucket's Settings → CORS, add:
+(You can also make the bucket by hand: Storage → New bucket → name `documents`,
+Public = **off**.)
 
-   ```json
-   [
-     {
-       "AllowedOrigins": ["http://localhost:3000", "https://your-app.vercel.app"],
-       "AllowedMethods": ["PUT", "GET"],
-       "AllowedHeaders": ["content-type"],
-       "MaxAgeSeconds": 3600
-     }
-   ]
-   ```
+### 2. Environment variables
 
-   Without this, the direct-to-R2 upload fails with a CORS error in the browser.
+Copy `.env.example` to `.env.local` and fill it in from Project Settings → API.
+On Vercel, add the same variables in Project Settings → Environment Variables.
 
-### 3. Environment variables
+- `SUPABASE_SERVICE_ROLE_KEY` is **server-only** — it's never sent to the
+  browser.
+- The `NEXT_PUBLIC_*` values are meant to be public (the anon key is safe to
+  expose); the browser needs them only to finish the signed upload.
 
-Copy `.env.example` to `.env.local` and fill it in. On Vercel, add the same
-variables in Project Settings → Environment Variables. The
-`SUPABASE_SERVICE_ROLE_KEY` and R2 secret are server-only — they are never sent
-to the browser.
-
-### 4. Run
+### 3. Run
 
 ```bash
 npm install
@@ -73,20 +67,22 @@ Open http://localhost:3000.
 
 ## Routes
 
-| Route                       | Method | Purpose                                             |
-| --------------------------- | ------ | --------------------------------------------------- |
-| `/api/upload-url`           | POST   | Sign a presigned PUT; returns `{ uploadUrl, key }`  |
-| `/api/documents`            | GET    | List entries (optional `?year=`)                    |
-| `/api/documents`            | POST   | Insert a metadata row after the R2 upload           |
-| `/api/documents/:id`        | DELETE | Remove the row **and** the R2 object                |
-| `/api/view-url/:id`         | GET    | Sign a presigned GET for the reader                 |
+| Route                | Method | Purpose                                              |
+| -------------------- | ------ | ---------------------------------------------------- |
+| `/api/upload-url`    | POST   | Mint a one-time signed upload token `{ path, token }`|
+| `/api/documents`     | GET    | List entries (optional `?year=`)                     |
+| `/api/documents`     | POST   | Insert a metadata row after the upload               |
+| `/api/documents/:id` | DELETE | Remove the row **and** the Storage object            |
+| `/api/view-url/:id`  | GET    | Sign a short-lived download URL for the reader        |
 
 ## Notes
 
-- **Keeping Supabase awake:** free projects pause after 7 days with no request.
-  A low-traffic archive can go dark on its own. A weekly cron (Vercel Cron
-  hitting `/api/documents`) keeps it warm, or upgrade to Pro if it's real.
-- **Making the bucket public instead:** if the docs are meant to be
-  world-readable, you can attach a custom domain to the bucket and iframe the
-  public URL directly, skipping `/api/view-url`. Private + presigned GET (the
-  default here) is the right call when they aren't.
+- **Egress:** the free ceiling is 5 GB/month — roughly 1,250 views of a 4 MB
+  PDF across everything. Fine for a low-traffic archive; upgrade if a document
+  goes viral.
+- **Idle pause:** free projects pause after 7 days with no request. A weekly
+  Vercel Cron hitting `/api/documents` keeps it warm.
+- **Growing past 1 GB / going card-free-but-bigger:** the alternative is Google
+  Drive (15 GB free), but programmatic upload needs Google OAuth and a
+  school-/org-managed Google account may have third-party app access disabled by
+  an admin — verify that before committing to it.

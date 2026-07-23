@@ -38,13 +38,13 @@ export async function POST(req) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const { title, author, kind, year, summary, r2_key, size_bytes } = body || {};
+  const { title, author, kind, year, summary, storage_path, size_bytes } = body || {};
 
   if (!title || !String(title).trim()) {
     return NextResponse.json({ error: "Every entry needs a title." }, { status: 400 });
   }
-  if (!r2_key) {
-    return NextResponse.json({ error: "Missing the uploaded file key." }, { status: 400 });
+  if (!storage_path) {
+    return NextResponse.json({ error: "Missing the uploaded file path." }, { status: 400 });
   }
 
   const { data, error } = await supabaseAdmin
@@ -55,7 +55,7 @@ export async function POST(req) {
       kind: kind || "REFERENCE",
       year: Number(year),
       summary: summary ? String(summary).trim() : null,
-      r2_key,
+      storage_path,
       content_type: "application/pdf",
       size_bytes: size_bytes ? Number(size_bytes) : null,
     })
