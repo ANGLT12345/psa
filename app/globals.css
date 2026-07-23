@@ -12,6 +12,33 @@ body {
   box-sizing: border-box;
 }
 
+/* ---------- theme ---------- */
+:root {
+  --bg: #e9edf1;
+  --fg: #0e1726;
+  --muted: #69788c;
+  --border: #cdd6e0;
+  --field-bg: #ffffff;
+  --field-border: #b6c2cf;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg: #0e1726;
+  --fg: #e9edf1;
+  --muted: #90a1b5;
+  --border: #2a3647;
+  --field-bg: #16202e;
+  --field-border: #33415a;
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
 /* Smooth entrance used when navigating between the catalogue and a reader. */
 @keyframes archive-fade-in {
   from {

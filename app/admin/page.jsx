@@ -151,7 +151,7 @@ export default function AdminPage() {
         style={{ borderColor: "#B6C2CF" }}
       >
         <GoogleMark />
-        <span className="text-[11px] tracking-widest" style={{ fontFamily: MONO, color: INK }}>
+        <span className="text-[11px] tracking-widest" style={{ fontFamily: MONO, color: "#0E1726" }}>
           {busy ? "REDIRECTING…" : "CONTINUE WITH GOOGLE"}
         </span>
       </button>

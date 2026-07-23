@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { INK, PAPER, BLUE, AMBER, MUTE, DISPLAY, MONO, YEARS } from "@/lib/ui";
+import { INK, PAPER, BLUE, AMBER, MUTE, BORDER, FIELD_BG, FIELD_BORDER, DISPLAY, MONO, YEARS } from "@/lib/ui";
+import ThemeToggle from "@/components/ThemeToggle";
 
 /* ---------- helpers ---------- */
 const catalogueId = (doc, i) => `${String(doc.year).slice(2)}-${String(i + 1).padStart(3, "0")}`;
@@ -63,7 +64,7 @@ export default function Archive({ admin = false, token = null }) {
       {/* year rail */}
       <aside
         className="w-16 md:w-24 shrink-0 flex flex-col items-center justify-start gap-2 py-6 border-r"
-        style={{ borderColor: "#CDD6E0" }}
+        style={{ borderColor: BORDER }}
       >
         {YEARS.map((y) => {
           const active = y === year;
@@ -99,6 +100,7 @@ export default function Archive({ admin = false, token = null }) {
             </h1>
           </div>
           <div className="order-1 md:order-2 flex flex-col items-end gap-3">
+            <ThemeToggle />
             <img
               src="/logo.png"
               alt="SST Science Communication"
@@ -288,9 +290,12 @@ function Reader({ doc, onBack }) {
         <button onClick={onBack} className="text-[11px] tracking-widest" style={{ fontFamily: MONO, color: BLUE }}>
           ← BACK TO CATALOGUE
         </button>
-        <span className="text-[11px] tracking-widest" style={{ fontFamily: MONO, color: MUTE }}>
-          {doc.year}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] tracking-widest" style={{ fontFamily: MONO, color: MUTE }}>
+            {doc.year}
+          </span>
+          <ThemeToggle />
+        </div>
       </div>
 
       <div className="px-5 md:px-10 pb-6 max-w-4xl">
@@ -339,7 +344,8 @@ function NewEntry({ token, onSaved, onCancel }) {
   const picker = useRef(null);
 
   const set = (k) => (e) => setF({ ...f, [k]: k === "year" ? Number(e.target.value) : e.target.value });
-  const field = "w-full px-3 py-2 text-sm bg-white border";
+  const field = "w-full px-3 py-2 text-sm border";
+  const fieldStyle = { borderColor: FIELD_BORDER, background: FIELD_BG, color: INK };
   const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
 
   const submit = async () => {
@@ -417,7 +423,7 @@ function NewEntry({ token, onSaved, onCancel }) {
         <button
           onClick={() => picker.current?.click()}
           className="w-full py-8 border-2 border-dashed text-sm"
-          style={{ borderColor: "#B6C2CF", color: MUTE }}
+          style={{ borderColor: FIELD_BORDER, color: MUTE }}
         >
           {file ? `${file.name} · ${(file.size / 1e6).toFixed(1)} MB` : "Choose a PDF from your computer"}
         </button>
@@ -427,11 +433,11 @@ function NewEntry({ token, onSaved, onCancel }) {
       </div>
 
       <Field label="Title">
-        <input className={field} style={{ borderColor: "#B6C2CF" }} value={f.title} onChange={set("title")} />
+        <input className={field} style={fieldStyle} value={f.title} onChange={set("title")} />
       </Field>
 
       <Field label="Year">
-        <select className={field} style={{ borderColor: "#B6C2CF" }} value={f.year} onChange={set("year")}>
+        <select className={field} style={fieldStyle} value={f.year} onChange={set("year")}>
           {YEARS.map((y) => (
             <option key={y}>{y}</option>
           ))}
@@ -439,13 +445,13 @@ function NewEntry({ token, onSaved, onCancel }) {
       </Field>
 
       <Field label="Curated by">
-        <input className={field} style={{ borderColor: "#B6C2CF" }} value={f.author} onChange={set("author")} />
+        <input className={field} style={fieldStyle} value={f.author} onChange={set("author")} />
       </Field>
 
       <Field label="Summary">
         <textarea
           className={field}
-          style={{ borderColor: "#B6C2CF" }}
+          style={fieldStyle}
           rows={4}
           value={f.summary}
           onChange={set("summary")}
@@ -487,7 +493,8 @@ function EditEntry({ token, doc, onSaved, onCancel }) {
   const [err, setErr] = useState("");
 
   const set = (k) => (e) => setF({ ...f, [k]: k === "year" ? Number(e.target.value) : e.target.value });
-  const field = "w-full px-3 py-2 text-sm bg-white border";
+  const field = "w-full px-3 py-2 text-sm border";
+  const fieldStyle = { borderColor: FIELD_BORDER, background: FIELD_BG, color: INK };
   const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
 
   const submit = async () => {
@@ -514,11 +521,11 @@ function EditEntry({ token, doc, onSaved, onCancel }) {
   return (
     <Modal title="Edit entry" onCancel={onCancel}>
       <Field label="Title">
-        <input className={field} style={{ borderColor: "#B6C2CF" }} value={f.title} onChange={set("title")} />
+        <input className={field} style={fieldStyle} value={f.title} onChange={set("title")} />
       </Field>
 
       <Field label="Year">
-        <select className={field} style={{ borderColor: "#B6C2CF" }} value={f.year} onChange={set("year")}>
+        <select className={field} style={fieldStyle} value={f.year} onChange={set("year")}>
           {YEARS.map((y) => (
             <option key={y}>{y}</option>
           ))}
@@ -526,13 +533,13 @@ function EditEntry({ token, doc, onSaved, onCancel }) {
       </Field>
 
       <Field label="Curated by">
-        <input className={field} style={{ borderColor: "#B6C2CF" }} value={f.author} onChange={set("author")} />
+        <input className={field} style={fieldStyle} value={f.author} onChange={set("author")} />
       </Field>
 
       <Field label="Summary">
         <textarea
           className={field}
-          style={{ borderColor: "#B6C2CF" }}
+          style={fieldStyle}
           rows={4}
           value={f.summary}
           onChange={set("summary")}
