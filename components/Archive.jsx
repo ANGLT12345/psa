@@ -56,6 +56,9 @@ export default function Archive({ admin = false, token = null }) {
   };
 
   const shown = docs.filter((d) => d.year === year);
+  const totalBytes = docs.reduce((sum, d) => sum + (d.size_bytes || 0), 0);
+  const usedMB = totalBytes / 1e6;
+  const usedLabel = usedMB >= 1000 ? `${(usedMB / 1000).toFixed(2)} GB` : `${usedMB.toFixed(1)} MB`;
 
   if (open) return <Reader doc={open} onBack={() => setOpen(null)} />;
 
@@ -110,13 +113,18 @@ export default function Archive({ admin = false, token = null }) {
               }}
             />
             {admin && (
-              <button
-                onClick={() => setPanel("new")}
-                className="text-[11px] tracking-widest px-4 py-2"
-                style={{ fontFamily: MONO, background: INK, color: PAPER }}
-              >
-                + NEW ENTRY
-              </button>
+              <>
+                <button
+                  onClick={() => setPanel("new")}
+                  className="text-[11px] tracking-widest px-4 py-2"
+                  style={{ fontFamily: MONO, background: INK, color: PAPER }}
+                >
+                  + NEW ENTRY
+                </button>
+                <p className="text-[10px] tracking-wide text-right" style={{ fontFamily: MONO, color: MUTE }}>
+                  {docs.length} {docs.length === 1 ? "FILE" : "FILES"} · {usedLabel} / 1 GB
+                </p>
+              </>
             )}
           </div>
         </header>
@@ -228,7 +236,7 @@ function Row({ doc, idx, admin, onOpen, onEdit, onRemove }) {
         <span className="flex-1 min-w-0">
           <span
             className="block text-xl md:text-3xl font-bold leading-tight transition-colors"
-            style={{ letterSpacing: "-0.03em", color: hover ? BLUE : INK }}
+            style={{ letterSpacing: "-0.03em", color: hover ? BLUE : INK, textTransform: "capitalize" }}
           >
             {doc.title}
           </span>
@@ -239,7 +247,7 @@ function Row({ doc, idx, admin, onOpen, onEdit, onRemove }) {
           )}
         </span>
         <span className="hidden md:block text-[10px] tracking-widest shrink-0 text-right" style={{ fontFamily: MONO, color: MUTE }}>
-          {doc.author}
+          {doc.author?.toUpperCase()}
         </span>
       </button>
       {admin && hover && (
@@ -299,7 +307,7 @@ function Reader({ doc, onBack }) {
       </div>
 
       <div className="px-5 md:px-10 pb-6 max-w-4xl">
-        <h1 className="text-3xl md:text-5xl font-bold leading-[1.05]" style={{ letterSpacing: "-0.04em" }}>
+        <h1 className="text-3xl md:text-5xl font-bold leading-[1.05]" style={{ letterSpacing: "-0.04em", textTransform: "capitalize" }}>
           {doc.title}
         </h1>
         {doc.summary && (
@@ -376,11 +384,19 @@ function NewEntry({ token, onSaved, onCancel }) {
       // 2. Upload the file straight to storage with a plain PUT — the file
       //    never passes through our function, so no body-size limit.
       setPhase("UPLOADING…");
-      const put = await fetch(signedUrl, {
-        method: "PUT",
-        headers: { "Content-Type": "application/pdf" },
-        body: file,
-      });
+      let put;
+      try {
+        put = await fetch(signedUrl, {
+          method: "PUT",
+          headers: { "Content-Type": "application/pdf" },
+          body: file,
+        });
+      } catch {
+        // fetch() rejects (not an HTTP error) on network/CORS problems.
+        throw new Error(
+          "Couldn't reach storage to upload (network blocked, offline, or a CORS issue). Try again, or check that the Storage bucket allows uploads from this site."
+        );
+      }
       if (!put.ok) {
         const raw = await put.text().catch(() => "");
         let detail = raw;
