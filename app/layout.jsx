@@ -1,8 +1,8 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "SST-IDP Pop Science Articles",
-  description: "SST-IDP popular-science article archive.",
+  title: "SST IDP Science Communication",
+  description: "SST IDP Science Communication article archive.",
 };
 
 export default function RootLayout({ children }) {

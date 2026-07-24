@@ -103,7 +103,7 @@ export default function Archive({ admin = false, token = null }) {
               CATALOGUE / {year}
             </p>
             <h1 className="text-4xl md:text-6xl font-bold leading-[1.02] max-w-3xl" style={{ letterSpacing: "-0.035em" }}>
-              SST-IDP Pop Science Articles
+              SST IDP Science Communication
             </h1>
           </div>
           <div className="order-1 md:order-2 flex flex-col items-end gap-3">
