@@ -381,7 +381,19 @@ function NewEntry({ token, onSaved, onCancel }) {
         })
       );
 
-      // 2. Upload the file straight to storage with a plain PUT — the file
+      // 2. Snapshot the file into memory first. Uploading the live File
+      //    reference fails with net::ERR_UPLOAD_FILE_CHANGED if the file's
+      //    on-disk timestamp changes mid-upload (common when it sits in a
+      //    OneDrive/cloud-synced folder). An in-memory Blob can't change.
+      setPhase("READING FILE…");
+      let snapshot;
+      try {
+        snapshot = new Blob([await file.arrayBuffer()], { type: "application/pdf" });
+      } catch {
+        throw new Error("Couldn't read that file. If it's in a cloud-synced folder, copy it somewhere local (e.g. Downloads) and try again.");
+      }
+
+      // 3. Upload the snapshot straight to storage with a plain PUT — the file
       //    never passes through our function, so no body-size limit.
       setPhase("UPLOADING…");
       let put;
@@ -389,7 +401,7 @@ function NewEntry({ token, onSaved, onCancel }) {
         put = await fetch(signedUrl, {
           method: "PUT",
           headers: { "Content-Type": "application/pdf" },
-          body: file,
+          body: snapshot,
         });
       } catch {
         // fetch() rejects (not an HTTP error) on network/CORS problems.
@@ -406,7 +418,7 @@ function NewEntry({ token, onSaved, onCancel }) {
         throw new Error(`Upload failed (${put.status})${detail ? `: ${detail}` : ""}.`);
       }
 
-      // 3. Record the metadata row.
+      // 4. Record the metadata row.
       setPhase("SAVING…");
       const { document } = await jsonOrThrow(
         await fetch("/api/documents", {
