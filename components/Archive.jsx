@@ -7,6 +7,10 @@ import ThemeToggle from "@/components/ThemeToggle";
 /* ---------- helpers ---------- */
 const catalogueId = (doc, i) => `${String(doc.year).slice(2)}-${String(i + 1).padStart(3, "0")}`;
 
+// Title Case: lowercase everything, then capitalize the first letter of each
+// word. (CSS `capitalize` can't do this because it never lowercases.)
+const titleCase = (s = "") => s.toLowerCase().replace(/(^|\s)[a-z]/g, (m) => m.toUpperCase());
+
 async function jsonOrThrow(res) {
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.error || `Request failed (${res.status}).`);
@@ -236,9 +240,9 @@ function Row({ doc, idx, admin, onOpen, onEdit, onRemove }) {
         <span className="flex-1 min-w-0">
           <span
             className="block text-xl md:text-3xl font-bold leading-tight transition-colors"
-            style={{ letterSpacing: "-0.03em", color: hover ? BLUE : INK, textTransform: "capitalize" }}
+            style={{ letterSpacing: "-0.03em", color: hover ? BLUE : INK }}
           >
-            {doc.title}
+            {titleCase(doc.title)}
           </span>
           {doc.summary && (
             <span className="block mt-1.5 text-sm max-w-2xl" style={{ color: MUTE }}>
@@ -307,8 +311,8 @@ function Reader({ doc, onBack }) {
       </div>
 
       <div className="px-5 md:px-10 pb-6 max-w-4xl">
-        <h1 className="text-3xl md:text-5xl font-bold leading-[1.05]" style={{ letterSpacing: "-0.04em", textTransform: "capitalize" }}>
-          {doc.title}
+        <h1 className="text-3xl md:text-5xl font-bold leading-[1.05]" style={{ letterSpacing: "-0.04em" }}>
+          {titleCase(doc.title)}
         </h1>
         {doc.summary && (
           <p className="mt-3 text-base md:text-lg" style={{ color: MUTE }}>
