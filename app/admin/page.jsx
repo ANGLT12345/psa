@@ -15,6 +15,7 @@ const supabase = SB_URL && SB_ANON ? createClient(SB_URL, SB_ANON) : null;
 export default function AdminPage() {
   const [status, setStatus] = useState("loading"); // loading | signedout | denied | admin
   const [token, setToken] = useState(null);
+  const [email, setEmail] = useState(""); // the signed-in account, for debugging denials
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -24,6 +25,7 @@ export default function AdminPage() {
       setStatus("signedout");
       return;
     }
+    setEmail(session.user?.email || "");
     const t = session.access_token;
     try {
       const res = await fetch("/api/admin/me", { headers: { Authorization: `Bearer ${t}` } });
@@ -105,9 +107,18 @@ export default function AdminPage() {
         <h1 className="text-3xl font-bold mb-3" style={{ letterSpacing: "-0.03em" }}>
           Not authorized
         </h1>
-        <p className="text-sm mb-5" style={{ color: MUTE }}>
+        <p className="text-sm mb-2" style={{ color: MUTE }}>
           This account isn't on the admin list.
         </p>
+        {email && (
+          <p className="text-sm mb-5" style={{ fontFamily: MONO, color: INK, wordBreak: "break-all" }}>
+            Signed in as: <b>{email}</b>
+            <br />
+            <span style={{ color: MUTE }}>
+              Send this exact address to whoever manages the site so it can be added.
+            </span>
+          </p>
+        )}
         <button
           onClick={signOut}
           className="text-[11px] tracking-widest px-4 py-2"
