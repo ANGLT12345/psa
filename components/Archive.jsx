@@ -97,8 +97,9 @@ export default function Archive({ admin = false, token = null }) {
       </aside>
 
       <div className="flex-1 min-w-0">
-        <header className="px-5 md:px-10 pt-8 pb-6 flex flex-wrap items-start justify-between gap-4">
-          <div className="order-2 md:order-1">
+        {/* Two columns that never stack: title left, logo/controls right. */}
+        <header className="px-5 md:px-10 pt-8 pb-6 flex items-start justify-between gap-4 md:gap-8">
+          <div className="min-w-0 flex-1">
             <p className="text-[10px] tracking-[0.3em] mb-2" style={{ fontFamily: MONO, color: MUTE }}>
               CATALOGUE / {year}
             </p>
@@ -106,12 +107,12 @@ export default function Archive({ admin = false, token = null }) {
               SST IDP Science Communication
             </h1>
           </div>
-          <div className="order-1 md:order-2 flex flex-col items-end gap-3">
+          <div className="shrink-0 flex flex-col items-end gap-3">
             <ThemeToggle />
             <img
               src="/logo.png"
               alt="SST Science Communication"
-              className="h-20 md:h-28 w-auto"
+              className="h-12 md:h-20 w-auto max-w-[38vw] object-contain"
               onError={(e) => {
                 e.currentTarget.style.display = "none";
               }}
