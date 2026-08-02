@@ -27,7 +27,8 @@ export async function GET(_req, { params }) {
     .createSignedUrl(doc.storage_path, 3600); // 1 hour, so a viewing session doesn't expire mid-read
 
   if (signErr) {
-    return NextResponse.json({ error: signErr.message }, { status: 500 });
+    console.error("GET /api/view-url sign failed:", signErr.message);
+    return NextResponse.json({ error: "Could not open this document." }, { status: 500 });
   }
 
   // Never cache this response: a cached (and later expired) signed URL is what

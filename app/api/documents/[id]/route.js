@@ -31,19 +31,27 @@ export async function PATCH(req, { params }) {
     return NextResponse.json({ error: "Every entry needs a title." }, { status: 400 });
   }
 
+  const yearNum = Number(year);
+  if (!Number.isInteger(yearNum)) {
+    return NextResponse.json({ error: "A valid year is required." }, { status: 400 });
+  }
+
   const { data, error } = await supabaseAdmin
     .from("documents")
     .update({
       title: String(title).trim(),
       author: String(author || "Unattributed").trim() || "Unattributed",
-      year: Number(year),
+      year: yearNum,
       summary: summary ? String(summary).trim() : null,
     })
     .eq("id", id)
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("PATCH /api/documents failed:", error.message);
+    return NextResponse.json({ error: "Could not update the entry." }, { status: 500 });
+  }
   if (!data) return NextResponse.json({ error: "Entry not found." }, { status: 404 });
   return NextResponse.json({ document: data });
 }
@@ -71,15 +79,14 @@ export async function DELETE(req, { params }) {
     .remove([doc.storage_path]);
 
   if (rmErr) {
-    return NextResponse.json(
-      { error: `Could not remove the file from Storage: ${rmErr.message}` },
-      { status: 502 }
-    );
+    console.error("DELETE storage.remove failed:", rmErr.message);
+    return NextResponse.json({ error: "Could not remove the stored file." }, { status: 502 });
   }
 
   const { error: delErr } = await supabaseAdmin.from("documents").delete().eq("id", id);
   if (delErr) {
-    return NextResponse.json({ error: delErr.message }, { status: 500 });
+    console.error("DELETE /api/documents failed:", delErr.message);
+    return NextResponse.json({ error: "Could not remove the entry." }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });

@@ -36,7 +36,8 @@ export async function POST(req) {
     .createSignedUploadUrl(path);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("POST /api/upload-url sign failed:", error.message);
+    return NextResponse.json({ error: "Could not start the upload." }, { status: 500 });
   }
 
   // data.signedUrl is an absolute, pre-authorized URL (the token is baked into

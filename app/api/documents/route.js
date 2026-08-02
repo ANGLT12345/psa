@@ -13,16 +13,20 @@ export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const year = searchParams.get("year");
 
+  // This endpoint is public, so select explicit columns: storage_path is an
+  // internal detail and is never needed by the client (views go through
+  // /api/view-url, which resolves the path server-side).
   let query = supabaseAdmin
     .from("documents")
-    .select("*")
+    .select("id, title, author, year, summary, size_bytes, created_at")
     .order("created_at", { ascending: false });
 
   if (year) query = query.eq("year", Number(year));
 
   const { data, error } = await query;
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("GET /api/documents failed:", error.message);
+    return NextResponse.json({ error: "Could not load the catalogue." }, { status: 500 });
   }
   return NextResponse.json({ documents: data });
 }
@@ -50,13 +54,25 @@ export async function POST(req) {
   if (!storage_path) {
     return NextResponse.json({ error: "Missing the uploaded file path." }, { status: 400 });
   }
+  // Only accept paths shaped like the ones /api/upload-url mints
+  // ("<year|misc>/<uuid>-<safe-filename>"), so a row can't be pointed at an
+  // arbitrary object elsewhere in the bucket.
+  const PATH_RE = /^(\d{4}|misc)\/[0-9a-f-]{36}-[\w.-]+$/i;
+  if (!PATH_RE.test(String(storage_path))) {
+    return NextResponse.json({ error: "Invalid file path." }, { status: 400 });
+  }
+
+  const yearNum = Number(year);
+  if (!Number.isInteger(yearNum)) {
+    return NextResponse.json({ error: "A valid year is required." }, { status: 400 });
+  }
 
   const { data, error } = await supabaseAdmin
     .from("documents")
     .insert({
       title: String(title).trim(),
       author: String(author || "Unattributed").trim() || "Unattributed",
-      year: Number(year),
+      year: yearNum,
       summary: summary ? String(summary).trim() : null,
       storage_path,
       content_type: "application/pdf",
@@ -66,7 +82,8 @@ export async function POST(req) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("POST /api/documents failed:", error.message);
+    return NextResponse.json({ error: "Could not save the entry." }, { status: 500 });
   }
   return NextResponse.json({ document: data }, { status: 201 });
 }
