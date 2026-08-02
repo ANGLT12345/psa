@@ -111,7 +111,7 @@ export default function Archive({ admin = false, token = null }) {
             <img
               src="/logo.png"
               alt="SST Science Communication"
-              className="h-32 md:h-48 w-auto"
+              className="h-20 md:h-28 w-auto"
               onError={(e) => {
                 e.currentTarget.style.display = "none";
               }}
