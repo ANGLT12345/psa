@@ -1,8 +1,8 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "SST IDP Science Communication",
-  description: "SST IDP Science Communication article archive.",
+  title: "SST X NIE Science Communication",
+  description: "SST X NIE Science Communication article archive.",
 };
 
 export default function RootLayout({ children }) {
