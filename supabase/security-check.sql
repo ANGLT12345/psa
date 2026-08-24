@@ -1,60 +1,87 @@
 -- Security check for The Archive.
--- Paste into the Supabase SQL editor and run. Each query prints what it should
--- say; anything different is worth fixing before it bites.
 --
--- Threat model: the only people who may upload/delete are those whose email is
--- in ADMIN_EMAILS. Everyone else is a reader. The anon key is PUBLIC (it ships
--- in the /admin page), so nothing may be reachable with it except reading the
+-- Threat model: only people whose email is in ADMIN_EMAILS may upload, edit, or
+-- delete. Everyone else is a reader. The anon key is PUBLIC (it ships in the
+-- /admin page), so nothing may be reachable with it except reading the
 -- catalogue through the API.
+--
+-- NOTE: the Supabase SQL editor only displays the result of the LAST statement.
+-- Run PART 1 on its own (select just that block and hit Run) to see every check
+-- in a single table.
 
--- 1) RLS must be ON for the documents table. ---------------------------------
---    Expected: rowsecurity = true
---    If false, anyone holding the public anon key can INSERT/DELETE rows
---    directly, bypassing the admin check entirely.
-select schemaname, tablename, rowsecurity
+-- ===========================================================================
+-- PART 1 — one-shot summary. Run this block by itself.
+-- ===========================================================================
+select 'RLS enabled on documents' as check,
+       case when bool_or(rowsecurity) then 'PASS' else 'FAIL — RLS is OFF' end as status,
+       'anon key could write directly if off' as detail
 from pg_tables
-where tablename = 'documents';
+where tablename = 'documents'
 
--- 2) There must be NO policies on documents. ---------------------------------
---    Expected: 0 rows.
---    The app reaches the table only with the service-role key, which bypasses
---    RLS. Any policy here is a door for the anon/authenticated role.
-select policyname, roles, cmd, qual, with_check
+union all
+select 'No policies on documents',
+       case when count(*) = 0 then 'PASS' else 'REVIEW — ' || count(*)::text || ' policy' end,
+       coalesce(string_agg(policyname, ', '), 'none')
 from pg_policies
-where tablename = 'documents';
+where tablename = 'documents'
 
--- 3) There must be NO storage policies. --------------------------------------
---    Expected: 0 rows.
---    A policy such as "authenticated users can insert" would let ANY signed-up
---    account upload straight into the bucket without ever touching our API,
---    which is the main way the admin allowlist gets bypassed.
-select policyname, roles, cmd, qual, with_check
+union all
+select 'No storage policies',
+       case when count(*) = 0 then 'PASS' else 'REVIEW — ' || count(*)::text || ' policy' end,
+       coalesce(string_agg(policyname, ', '), 'none')
 from pg_policies
-where schemaname = 'storage';
+where schemaname = 'storage'
 
--- 4) The bucket must be private, and should cap size + MIME type. ------------
---    Expected: public = false
---               file_size_limit  set (e.g. 26214400 = 25 MB), not null
---               allowed_mime_types = {application/pdf}, not null
---    The API's content-type check is advisory only: the browser sets its own
---    header on the direct PUT, so only the bucket can actually enforce this.
-select id, public, file_size_limit, allowed_mime_types
-from storage.buckets;
+union all
+select 'Bucket is private',
+       case when bool_or(public) then 'FAIL — BUCKET IS PUBLIC' else 'PASS' end,
+       coalesce(string_agg(
+         id || ': size_limit=' || coalesce(file_size_limit::text, 'NONE') ||
+         ', mime=' || coalesce(allowed_mime_types::text, 'NONE'), ' | '), 'no buckets')
+from storage.buckets
 
--- 5) Review every auth account that exists. ----------------------------------
---    Expected: only people you recognise. An account you don't know that has
---    an email matching ADMIN_EMAILS is an active compromise.
---    email_confirmed_at must be non-null for anyone who can reach admin.
-select
-  email,
-  email_confirmed_at,
-  raw_app_meta_data ->> 'provider' as provider,
-  created_at,
-  last_sign_in_at
+union all
+select 'Auth accounts',
+       count(*)::text || ' account(s)',
+       coalesce(string_agg(
+         coalesce(email, '(no email)') ||
+         case when email_confirmed_at is null then ' [UNCONFIRMED]' else '' end, ', '), 'none')
 from auth.users
-order by created_at desc;
 
--- 6) Orphans: rows whose file is gone, or files with no row. -----------------
---    Not a vulnerability, but a mismatch can indicate failed/partial uploads.
-select count(*) as document_rows from public.documents;
-select count(*) as stored_objects from storage.objects where bucket_id = 'documents';
+union all
+select 'Catalogue rows vs stored files',
+       case when (select count(*) from public.documents)
+               = (select count(*) from storage.objects where bucket_id = 'documents')
+            then 'PASS' else 'MISMATCH — orphans exist' end,
+       (select count(*)::text from public.documents) || ' rows / ' ||
+       (select count(*)::text from storage.objects where bucket_id = 'documents') || ' files';
+
+-- ===========================================================================
+-- PART 2 — find orphaned files (stored but not in the catalogue).
+-- These are usually left behind by an upload whose metadata insert failed.
+-- They are invisible in the app but still consume the 1 GB quota.
+-- ===========================================================================
+select o.name as orphaned_file,
+       round((o.metadata ->> 'size')::numeric / 1048576, 2) as size_mb,
+       o.created_at
+from storage.objects o
+left join public.documents d on d.storage_path = o.name
+where o.bucket_id = 'documents'
+  and d.id is null
+order by o.created_at desc;
+
+-- To delete the orphans listed above, from the Supabase dashboard:
+--   Storage → documents → tick the files → Delete.
+-- (Deleting through the dashboard is safer than a SQL delete, which would
+--  remove the row but not the underlying object.)
+
+-- ===========================================================================
+-- PART 3 — the reverse: catalogue rows whose file is missing.
+-- These show in the app but fail to open.
+-- ===========================================================================
+select d.id, d.title, d.storage_path, d.created_at
+from public.documents d
+left join storage.objects o
+  on o.name = d.storage_path and o.bucket_id = 'documents'
+where o.id is null
+order by d.created_at desc;
