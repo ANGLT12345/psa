@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin, isConfigured } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/auth";
 
 export const runtime = "nodejs";
@@ -10,6 +10,14 @@ export const dynamic = "force-dynamic";
  * GET /api/documents?year=2026  -> just that year's shelf
  */
 export async function GET(req) {
+  if (!isConfigured) {
+    console.error("SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are not set in this environment.");
+    return NextResponse.json(
+      { error: "The server is missing its database configuration." },
+      { status: 503 }
+    );
+  }
+
   const { searchParams } = new URL(req.url);
   const year = searchParams.get("year");
 
@@ -25,8 +33,14 @@ export async function GET(req) {
 
   const { data, error } = await query;
   if (error) {
-    console.error("GET /api/documents failed:", error.message);
-    return NextResponse.json({ error: "Could not load the catalogue." }, { status: 500 });
+    // Log the full error server-side; return only the Postgres error code to
+    // the client — enough to diagnose (42703 = missing column, 42P01 = missing
+    // table) without leaking schema details.
+    console.error("GET /api/documents failed:", error.code, error.message, error.details || "");
+    return NextResponse.json(
+      { error: "Could not load the catalogue.", code: error.code || "unknown" },
+      { status: 500 }
+    );
   }
   return NextResponse.json({ documents: data });
 }

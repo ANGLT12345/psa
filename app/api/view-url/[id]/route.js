@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
+import { supabaseAdmin, STORAGE_BUCKET, isConfigured } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,6 +10,13 @@ export const dynamic = "force-dynamic";
  * stays private — nobody can reach a file without going through this route.
  */
 export async function GET(_req, { params }) {
+  if (!isConfigured) {
+    return NextResponse.json(
+      { error: "The server is missing its database configuration." },
+      { status: 503 }
+    );
+  }
+
   const { id } = params;
 
   const { data: doc, error } = await supabaseAdmin
