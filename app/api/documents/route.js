@@ -31,14 +31,45 @@ export async function GET(req) {
 
   if (year) query = query.eq("year", Number(year));
 
-  const { data, error } = await query;
-  if (error) {
-    // Log the full error server-side; return only the Postgres error code to
-    // the client — enough to diagnose (42703 = missing column, 42P01 = missing
-    // table) without leaking schema details.
-    console.error("GET /api/documents failed:", error.code, error.message, error.details || "");
+  let data, error;
+  try {
+    ({ data, error } = await query);
+  } catch (e) {
+    // A thrown (rather than returned) error means we never reached Postgres at
+    // all — the usual cause is a paused/unreachable Supabase project, which on
+    // the free tier happens after 7 days with no database request.
+    console.error("GET /api/documents could not reach the database:", e?.message || e);
     return NextResponse.json(
-      { error: "Could not load the catalogue.", code: error.code || "unknown" },
+      {
+        error:
+          "Could not reach the database. If this is a free Supabase project it may be paused — restore it from the dashboard.",
+        code: "unreachable",
+      },
+      { status: 503 }
+    );
+  }
+
+  if (error) {
+    console.error("GET /api/documents failed:", error.code, error.message, error.details || "");
+
+    // A network-level failure comes back with no Postgres error code — we never
+    // reached the database. On the free tier the usual cause is a paused
+    // project (7 days with no database request), which must be restored by hand.
+    if (!error.code || /fetch failed|network|ENOTFOUND|ECONNREFUSED/i.test(error.message || "")) {
+      return NextResponse.json(
+        {
+          error:
+            "Could not reach the database. If this is a free Supabase project it may be paused — restore it from the dashboard.",
+          code: "unreachable",
+        },
+        { status: 503 }
+      );
+    }
+
+    // Otherwise return just the Postgres error code — enough to diagnose
+    // (42703 = missing column, 42P01 = missing table) without leaking schema.
+    return NextResponse.json(
+      { error: "Could not load the catalogue.", code: error.code },
       { status: 500 }
     );
   }
