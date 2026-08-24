@@ -114,6 +114,30 @@ Open http://localhost:3000.
 "admin" routes require a `Bearer` access token from a Supabase session whose
 email is in `ADMIN_EMAILS`.
 
+## Security
+
+Only emails listed in `ADMIN_EMAILS` may upload, edit, or delete. That check runs
+on the server for every mutating route, so the unlisted `/admin` URL is
+convenience, not the boundary.
+
+Things that must be true on the Supabase side for that to hold — run
+[`supabase/security-check.sql`](supabase/security-check.sql) in the SQL editor to
+verify all of them at once:
+
+| Setting | Where | Must be |
+| ------- | ----- | ------- |
+| Confirm email | Auth → Providers → Email | **On** (or the provider disabled entirely) |
+| Anonymous sign-ins | Auth → Providers | **Off** |
+| Redirect URLs | Auth → URL Configuration | Only your own domains |
+| RLS on `documents` | Database | **Enabled, with no policies** |
+| Storage policies | Storage | **None** |
+| Bucket `documents` | Storage | **Private**, size limit + `application/pdf` only |
+| Two-factor auth | Supabase / Vercel / GitHub accounts | **On** |
+
+The service-role key must exist only in Vercel's environment variables. If it is
+ever pasted into a chat, screenshot, or committed file, rotate it immediately
+(Project Settings → API → service_role → Reset).
+
 ## Notes
 
 - **Egress:** the free ceiling is 5 GB/month — roughly 1,250 views of a 4 MB
