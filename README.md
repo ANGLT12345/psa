@@ -119,8 +119,13 @@ email is in `ADMIN_EMAILS`.
 - **Egress:** the free ceiling is 5 GB/month — roughly 1,250 views of a 4 MB
   PDF across everything. Fine for a low-traffic archive; upgrade if a document
   goes viral.
-- **Idle pause:** free projects pause after 7 days with no request. A weekly
-  Vercel Cron hitting `/api/documents` keeps it warm.
+- **Idle pause:** free Supabase projects pause after 7 days with no database
+  request, and un-pausing is manual from the dashboard. [`vercel.json`](vercel.json)
+  defines two Vercel Cron jobs (Mondays and Thursdays, 09:00 UTC) that hit
+  `/api/documents` — each one runs a real query, which resets the 7-day timer.
+  Two runs spaced 3–4 days apart means a single missed run still can't reach 7
+  days. Note the Hobby plan allows **2 cron jobs per project** at a
+  no-more-than-daily frequency, so this sits exactly at the limit.
 - **Growing past 1 GB / going card-free-but-bigger:** the alternative is Google
   Drive (15 GB free), but programmatic upload needs Google OAuth and a
   school-/org-managed Google account may have third-party app access disabled by
