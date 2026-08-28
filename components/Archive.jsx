@@ -121,6 +121,14 @@ export default function Archive({ admin = false, token = null }) {
             </button>
           );
         })}
+        {/* Pinned to the foot of the rail: reopen the module introduction. */}
+        <button
+          onClick={() => setAbout(true)}
+          className="mt-auto w-full py-4 text-[10px] tracking-[0.15em] transition-colors"
+          style={{ fontFamily: MONO, color: MUTE, background: "transparent" }}
+        >
+          ABOUT
+        </button>
       </aside>
 
       <div className="flex-1 min-w-0">
@@ -263,20 +271,6 @@ export default function Archive({ admin = false, token = null }) {
           }}
         />
       )}
-
-      {/* Persistent way back to the introduction, clear of the year rail. */}
-      <button
-        onClick={() => setAbout(true)}
-        className="fixed bottom-4 left-20 md:left-28 z-40 text-[10px] tracking-widest px-3 py-2 border"
-        style={{
-          fontFamily: MONO,
-          color: INK,
-          borderColor: BORDER,
-          background: FIELD_BG,
-        }}
-      >
-        ABOUT
-      </button>
 
       {about && <About firstVisit={firstVisit} onClose={closeAbout} />}
 
