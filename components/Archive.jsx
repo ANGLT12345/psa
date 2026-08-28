@@ -96,8 +96,10 @@ export default function Archive({ admin = false, token = null }) {
   return (
     <div className="archive-enter min-h-screen flex" style={{ background: PAPER, color: INK, fontFamily: DISPLAY }}>
       {/* year rail */}
+      {/* Sticky, exactly one viewport tall, so ABOUT is always reachable at the
+          foot of the rail without scrolling to the end of the catalogue. */}
       <aside
-        className="w-16 md:w-24 shrink-0 flex flex-col items-center justify-start gap-2 py-6 border-r"
+        className="w-16 md:w-24 shrink-0 self-start sticky top-0 h-screen overflow-y-auto flex flex-col items-center justify-start gap-2 py-6 border-r"
         style={{ borderColor: BORDER }}
       >
         {YEARS.map((y) => {

@@ -45,9 +45,11 @@ body {
     opacity: 0;
     transform: translateY(10px);
   }
+  /* `none`, not translateY(0): a lingering transform would create a containing
+     block on the animated wrapper and interfere with the sticky year rail. */
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
 }
 
