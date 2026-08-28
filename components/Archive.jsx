@@ -27,6 +27,7 @@ export default function Archive({ admin = false, token = null }) {
   const [open, setOpen] = useState(null);
   const [panel, setPanel] = useState(null); // 'new'
   const [editing, setEditing] = useState(null); // doc being edited
+  const [confirming, setConfirming] = useState(null); // doc pending delete confirmation
   const [ready, setReady] = useState(false);
   const [loadErr, setLoadErr] = useState("");
 
@@ -52,15 +53,12 @@ export default function Archive({ admin = false, token = null }) {
     loadDocs();
   }, []);
 
+  // Throws on failure so the confirm dialog can surface the reason and stay open.
   const removeDoc = async (id) => {
-    const prev = docs;
-    setDocs(docs.filter((x) => x.id !== id)); // optimistic
-    try {
-      await jsonOrThrow(await fetch(`/api/documents/${id}`, { method: "DELETE", headers: authHeaders }));
-    } catch (e) {
-      setDocs(prev); // roll back
-      alert(e.message);
-    }
+    await jsonOrThrow(
+      await fetch(`/api/documents/${id}`, { method: "DELETE", headers: authHeaders })
+    );
+    setDocs((prev) => prev.filter((x) => x.id !== id));
   };
 
   const shown = docs.filter((d) => d.year === year);
@@ -193,7 +191,7 @@ export default function Archive({ admin = false, token = null }) {
                 admin={admin}
                 onOpen={() => setOpen(d)}
                 onEdit={() => setEditing(d)}
-                onRemove={() => removeDoc(d.id)}
+                onRemove={() => setConfirming(d)}
               />
             ))
           )}
@@ -240,7 +238,77 @@ export default function Archive({ admin = false, token = null }) {
           }}
         />
       )}
+
+      {admin && confirming && (
+        <ConfirmDelete
+          doc={confirming}
+          onCancel={() => setConfirming(null)}
+          onConfirm={() => removeDoc(confirming.id)}
+          onDone={() => setConfirming(null)}
+        />
+      )}
     </div>
+  );
+}
+
+/* ---------- delete confirmation (admin only) ---------- */
+function ConfirmDelete({ doc, onConfirm, onCancel, onDone }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  const go = async () => {
+    setErr("");
+    setBusy(true);
+    try {
+      await onConfirm();
+      onDone();
+    } catch (e) {
+      setErr(e.message);
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal title="Delete this entry?" onCancel={busy ? () => {} : onCancel}>
+      <p className="text-base font-bold mb-1" style={{ letterSpacing: "-0.01em" }}>
+        {titleCase(doc.title)}
+      </p>
+      <p className="text-[11px] tracking-widest mb-4" style={{ fontFamily: MONO, color: MUTE }}>
+        {doc.year} · {doc.author?.toUpperCase()}
+      </p>
+      <p className="text-sm mb-1" style={{ color: MUTE }}>
+        This removes the catalogue entry <b>and permanently deletes the PDF</b> from
+        storage.
+      </p>
+      <p className="text-sm" style={{ color: MUTE }}>
+        It cannot be undone — the file would have to be uploaded again.
+      </p>
+
+      {err && (
+        <p className="text-sm mt-3" style={{ color: "#B3261E" }}>
+          {err}
+        </p>
+      )}
+
+      <div className="flex gap-3 mt-6">
+        <button
+          onClick={go}
+          disabled={busy}
+          className="text-[11px] tracking-widest px-5 py-2.5 disabled:opacity-50"
+          style={{ fontFamily: MONO, background: "#B3261E", color: "#fff" }}
+        >
+          {busy ? "DELETING…" : "DELETE PERMANENTLY"}
+        </button>
+        <button
+          onClick={onCancel}
+          disabled={busy}
+          className="text-[11px] tracking-widest px-3 py-2.5 disabled:opacity-50"
+          style={{ fontFamily: MONO, color: MUTE }}
+        >
+          CANCEL
+        </button>
+      </div>
+    </Modal>
   );
 }
 
