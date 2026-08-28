@@ -34,11 +34,15 @@ export default function Archive({ admin = false, token = null }) {
 
   const loadDocs = async () => {
     try {
-      const { documents } = await jsonOrThrow(await fetch("/api/documents"));
+      const { documents } = await jsonOrThrow(
+        await fetch("/api/documents", { cache: "no-store" })
+      );
       setDocs(documents || []);
       setLoadErr("");
+      return documents || [];
     } catch (e) {
       setLoadErr(e.message);
+      return null;
     } finally {
       setReady(true);
     }
@@ -200,10 +204,22 @@ export default function Archive({ admin = false, token = null }) {
         <NewEntry
           token={token}
           onCancel={() => setPanel(null)}
-          onSaved={(doc) => {
-            setDocs((prev) => [doc, ...prev]);
-            setYear(doc.year);
+          onSaved={async (doc) => {
+            if (!doc?.id) {
+              alert("The entry did not come back from the server — nothing was saved.");
+              return;
+            }
             setPanel(null);
+            setYear(doc.year);
+            // Re-read from the server rather than trusting the optimistic add,
+            // so a row that didn't really persist can't appear to have saved.
+            const fresh = await loadDocs();
+            if (fresh && !fresh.some((d) => d.id === doc.id)) {
+              alert(
+                "The entry was saved but is missing when re-read from the database. " +
+                  "Reload the page; if it is still missing, tell Claude."
+              );
+            }
           }}
         />
       )}
@@ -214,6 +230,10 @@ export default function Archive({ admin = false, token = null }) {
           doc={editing}
           onCancel={() => setEditing(null)}
           onSaved={(updated) => {
+            if (!updated?.id) {
+              alert("The update did not come back from the server — nothing was changed.");
+              return;
+            }
             setDocs((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
             setYear(updated.year);
             setEditing(null);
