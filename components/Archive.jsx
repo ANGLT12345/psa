@@ -331,11 +331,6 @@ function About({ firstVisit, onClose }) {
         >
           {firstVisit ? "GOT IT" : "CLOSE"}
         </button>
-        {firstVisit && (
-          <span className="text-[10px] tracking-wide" style={{ fontFamily: MONO, color: MUTE }}>
-            REOPEN ANY TIME VIA “ABOUT”
-          </span>
-        )}
       </div>
     </Modal>
   );
@@ -800,10 +795,23 @@ function Modal({ title, children, onCancel, wide = false }) {
           </h2>
           <button
             onClick={onCancel}
-            className="text-[11px] shrink-0 mt-1"
-            style={{ fontFamily: MONO, color: MUTE }}
+            aria-label="Close"
+            title="Close"
+            className="shrink-0 mt-1 p-1 leading-none"
+            style={{ color: MUTE }}
           >
-            ESC
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 18 18"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              aria-hidden="true"
+            >
+              <path d="M4 4l10 10M14 4L4 14" />
+            </svg>
           </button>
         </div>
         {children}
