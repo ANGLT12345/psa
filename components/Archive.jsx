@@ -295,7 +295,7 @@ export default function Archive({ admin = false, token = null }) {
 /* ---------- module introduction ---------- */
 function About({ firstVisit, onClose }) {
   return (
-    <Modal title="About this archive" onCancel={onClose} wide>
+    <Modal title="About SST X NIE Science Communication" onCancel={onClose} wide>
       <div className="space-y-4 text-[15px] leading-relaxed" style={{ color: INK }}>
         <p>
           Through a collaboration between School of Science and Technology (SST)&apos;s English
@@ -794,11 +794,15 @@ function Modal({ title, children, onCancel, wide = false }) {
         className={`w-full ${wide ? "max-w-2xl" : "max-w-lg"} p-6 md:p-8 mt-10 mb-10`}
         style={{ background: PAPER, color: INK }}
       >
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-2xl font-bold" style={{ letterSpacing: "-0.03em" }}>
+        <div className="flex items-start justify-between gap-4 mb-5">
+          <h2 className="text-2xl font-bold leading-tight min-w-0" style={{ letterSpacing: "-0.03em" }}>
             {title}
           </h2>
-          <button onClick={onCancel} className="text-[11px]" style={{ fontFamily: MONO, color: MUTE }}>
+          <button
+            onClick={onCancel}
+            className="text-[11px] shrink-0 mt-1"
+            style={{ fontFamily: MONO, color: MUTE }}
+          >
             ESC
           </button>
         </div>
