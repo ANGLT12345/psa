@@ -11,6 +11,9 @@ const catalogueId = (doc, i) => `${String(doc.year).slice(2)}-${String(i + 1).pa
 // word. (CSS `capitalize` can't do this because it never lowercases.)
 const titleCase = (s = "") => s.toLowerCase().replace(/(^|\s)[a-z]/g, (m) => m.toUpperCase());
 
+// Bump the suffix to show the intro again to everyone (e.g. if the text changes).
+const INTRO_KEY = "archive:intro-seen:v1";
+
 async function jsonOrThrow(res) {
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.error || `Request failed (${res.status}).`);
@@ -28,6 +31,28 @@ export default function Archive({ admin = false, token = null }) {
   const [panel, setPanel] = useState(null); // 'new'
   const [editing, setEditing] = useState(null); // doc being edited
   const [confirming, setConfirming] = useState(null); // doc pending delete confirmation
+  const [about, setAbout] = useState(false); // the module introduction
+  const [firstVisit, setFirstVisit] = useState(false);
+
+  // Show the introduction automatically the first time someone visits.
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(INTRO_KEY)) {
+        setFirstVisit(true);
+        setAbout(true);
+      }
+    } catch {
+      // Private browsing or storage blocked — just don't auto-open.
+    }
+  }, []);
+
+  const closeAbout = () => {
+    try {
+      localStorage.setItem(INTRO_KEY, "1");
+    } catch {}
+    setAbout(false);
+    setFirstVisit(false);
+  };
   const [ready, setReady] = useState(false);
   const [loadErr, setLoadErr] = useState("");
 
@@ -239,6 +264,22 @@ export default function Archive({ admin = false, token = null }) {
         />
       )}
 
+      {/* Persistent way back to the introduction, clear of the year rail. */}
+      <button
+        onClick={() => setAbout(true)}
+        className="fixed bottom-4 left-20 md:left-28 z-40 text-[10px] tracking-widest px-3 py-2 border"
+        style={{
+          fontFamily: MONO,
+          color: INK,
+          borderColor: BORDER,
+          background: FIELD_BG,
+        }}
+      >
+        ABOUT
+      </button>
+
+      {about && <About firstVisit={firstVisit} onClose={closeAbout} />}
+
       {admin && confirming && (
         <ConfirmDelete
           doc={confirming}
@@ -248,6 +289,55 @@ export default function Archive({ admin = false, token = null }) {
         />
       )}
     </div>
+  );
+}
+
+/* ---------- module introduction ---------- */
+function About({ firstVisit, onClose }) {
+  return (
+    <Modal title="About this archive" onCancel={onClose} wide>
+      <div className="space-y-4 text-[15px] leading-relaxed" style={{ color: INK }}>
+        <p>
+          Through a collaboration between School of Science and Technology (SST)&apos;s English
+          Language Department and Dr Tan Aik Leng, Deputy Head of Teaching &amp; Curriculum
+          Matters (Natural Sciences &amp; Science Education) at NIE, the Science Communication
+          Module provides Secondary 4 IDP students with an authentic platform to develop their
+          skills as effective science communicators.
+        </p>
+        <p>
+          During the 10-week module, students learn to critically engage with scientific research
+          and translate complex ideas into accessible and engaging popular science articles for a
+          wider audience.
+        </p>
+        <p>
+          The module culminates in a visit to NIE, where students gain first-hand insights into
+          scientific research through a laboratory tour before presenting their work to NIE science
+          researchers and their fellow IDP students. Drawing on the research papers they have
+          explored, students communicate complex scientific concepts and research findings with
+          clarity and confidence, while responding thoughtfully to questions from their audience.
+        </p>
+        <p>
+          Through this authentic learning experience, students strengthen not only their scientific
+          literacy and communication skills, but also their ability to communicate with confidence,
+          purpose and impact.
+        </p>
+      </div>
+
+      <div className="flex items-center gap-3 mt-7">
+        <button
+          onClick={onClose}
+          className="text-[11px] tracking-widest px-5 py-2.5"
+          style={{ fontFamily: MONO, background: BLUE, color: "#fff" }}
+        >
+          {firstVisit ? "GOT IT" : "CLOSE"}
+        </button>
+        {firstVisit && (
+          <span className="text-[10px] tracking-wide" style={{ fontFamily: MONO, color: MUTE }}>
+            REOPEN ANY TIME VIA “ABOUT”
+          </span>
+        )}
+      </div>
+    </Modal>
   );
 }
 
@@ -697,10 +787,13 @@ function EditEntry({ token, doc, onSaved, onCancel }) {
 }
 
 /* ---------- shells ---------- */
-function Modal({ title, children, onCancel }) {
+function Modal({ title, children, onCancel, wide = false }) {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4" style={{ background: "rgba(14,23,38,0.7)" }}>
-      <div className="w-full max-w-lg p-6 mt-10 mb-10" style={{ background: PAPER, color: INK }}>
+      <div
+        className={`w-full ${wide ? "max-w-2xl" : "max-w-lg"} p-6 md:p-8 mt-10 mb-10`}
+        style={{ background: PAPER, color: INK }}
+      >
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-2xl font-bold" style={{ letterSpacing: "-0.03em" }}>
             {title}
